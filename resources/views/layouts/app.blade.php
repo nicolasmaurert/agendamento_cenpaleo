@@ -1,156 +1,116 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="h-full bg-slate-900 text-slate-100">
+<html lang="pt-BR" class="h-full scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Exposição Cenpaleo - Agendamento de Visitas')</title>
+    <meta name="theme-color" content="#43bdd3">
+    <title>@yield('title', 'CENPALEO - Agendamento de Visitas')</title>
 
-    <!-- Google Fonts (Inter) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        brand: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                            900: '#14532d',
-                        },
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- Lucide Icons -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
+        :root { color-scheme: light; }
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0b1120;
-            background-image: radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.5) 0px, transparent 50%),
-                              radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.8) 0px, transparent 50%);
-            background-repeat: no-repeat;
-            background-attachment: fixed;
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle at 8% 20%, rgba(67, 189, 211, .08), transparent 24rem), radial-gradient(circle at 92% 45%, rgba(107, 79, 217, .06), transparent 28rem), #f7f8f8;
+            color: #334155;
         }
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.75);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .glass-card {
-            background: rgba(30, 41, 59, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
+        .museum-card { background: rgba(255, 255, 255, .96); border: 1px solid rgba(23, 50, 77, .08); box-shadow: 0 18px 50px rgba(23, 50, 77, .10); }
+        .museum-field { width: 100%; border: 1px solid #dce3e8; border-radius: .85rem; background: #fff; color: #17324d; transition: border-color .2s, box-shadow .2s; }
+        .museum-field:focus { border-color: #43bdd3; box-shadow: 0 0 0 3px rgba(67, 189, 211, .16); outline: none; }
+        .section-kicker { color: #f7941d; font-size: .72rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+        .brand-rule { width: 4.5rem; height: .3rem; border-radius: 999px; background: linear-gradient(90deg, #f7941d 0 33%, #43bdd3 33% 66%, #6b4fd9 66%); }
+        .modal-backdrop { background: rgba(23, 50, 77, .66); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        [data-lucide] { stroke-width: 1.8; }
     </style>
     @stack('styles')
 </head>
-<body class="min-h-screen flex flex-col antialiased text-slate-200">
-
-    <!-- Header / Navbar -->
-    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-            <a href="{{ route('public.calendar') }}" class="flex items-center gap-3 group">
-                <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-900/30 group-hover:scale-105 transition-transform duration-200">
-                    <i data-lucide="bone" class="w-6 h-6 text-white"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight text-white group-hover:text-emerald-400 transition-colors">Exposição Cenpaleo</h1>
-                    <p class="text-xs text-slate-400 font-medium">Sistema de Agendamento de Visitas Guiadas</p>
-                </div>
-            </a>
-
-            <div class="flex items-center gap-4">
-                <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
-                    <i data-lucide="shield-check" class="w-4 h-4"></i>
-                    <span>Em Conformidade com a LGPD</span>
-                </div>
-
-                @if(session('admin_logged_in'))
-                    <a href="{{ route('admin.dashboard') }}" class="px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-900/40 transition-all flex items-center gap-2">
-                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-                        <span>Painel Admin</span>
-                    </a>
-                @else
-                    <a href="{{ route('admin.login') }}" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all flex items-center gap-1.5">
-                        <i data-lucide="lock" class="w-3.5 h-3.5"></i>
-                        <span>Área Restrita</span>
-                    </a>
-                @endif
+<body class="min-h-screen flex flex-col antialiased">
+    <div class="bg-cenpaleo-cyan text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-10 py-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[11px] sm:text-xs font-medium">
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+                <a href="tel:+554736415514" class="flex items-center gap-1.5 hover:text-cenpaleo-navy transition-colors"><i data-lucide="phone" class="w-3.5 h-3.5"></i><span>(47) 3641-5514</span></a>
+                <a href="mailto:cenpaleo@unc.br" class="flex items-center gap-1.5 hover:text-cenpaleo-navy transition-colors"><i data-lucide="mail" class="w-3.5 h-3.5"></i><span>cenpaleo@unc.br</span></a>
             </div>
+            <div class="hidden md:flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i><span>Av. Presidente Nereu Ramos, 1071 — Mafra/SC</span></div>
+        </div>
+    </div>
+
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-24 py-3 flex items-center justify-between gap-4">
+            <a href="{{ route('public.calendar') }}" class="shrink-0" aria-label="Página inicial do agendamento CENPALEO">
+                <img src="{{ asset('images/cenpaleo/logo.png') }}" alt="CENPALEO - Centro de Pesquisa Paleontológica" class="h-16 sm:h-[72px] w-auto">
+            </a>
+            <nav class="flex items-center gap-2 sm:gap-5 text-xs font-bold uppercase tracking-wide text-cenpaleo-navy">
+                <a href="{{ route('public.calendar') }}" class="hidden sm:inline-flex py-2 border-b-2 border-cenpaleo-orange text-cenpaleo-orange">Agendamento</a>
+                <a href="https://cenpaleo.unc.br/" target="_blank" rel="noopener noreferrer" class="hidden lg:inline-flex py-2 hover:text-cenpaleo-purple transition-colors">Conheça o CENPALEO</a>
+                @if(session('admin_logged_in'))
+                    <a href="{{ route('admin.dashboard') }}" class="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-full bg-cenpaleo-purple text-white hover:bg-violet-700 transition-colors shadow-md shadow-violet-200"><i data-lucide="layout-dashboard" class="w-4 h-4"></i><span class="hidden sm:inline">Painel Admin</span><span class="sm:hidden">Admin</span></a>
+                @else
+                    <a href="{{ route('admin.login') }}" class="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-full border border-slate-200 hover:border-cenpaleo-cyan hover:text-cenpaleo-cyan-dark transition-colors"><i data-lucide="lock-keyhole" class="w-4 h-4"></i><span class="hidden sm:inline">Área Restrita</span><span class="sm:hidden">Admin</span></a>
+                @endif
+            </nav>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        @yield('content')
-    </main>
+    <main class="flex-grow w-full">@yield('content')</main>
 
-    <!-- Footer -->
-    <footer class="mt-auto border-t border-slate-800/80 py-8 bg-slate-950/60">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-            <div class="flex items-center gap-2">
-                <i data-lucide="landmark" class="w-4 h-4 text-emerald-500"></i>
-                <span>Centro de Pesquisas Paleontológicas – Cenpaleo</span>
+    <footer class="mt-auto bg-cenpaleo-charcoal text-slate-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+            <div>
+                <div class="inline-flex bg-white rounded-xl px-4 py-3 mb-4"><img src="{{ asset('images/cenpaleo/logo.png') }}" alt="CENPALEO" class="h-12 w-auto"></div>
+                <p class="text-xs leading-6 text-slate-400">Centro de Pesquisa Paleontológica e Museu da Terra e da Vida da Universidade do Contestado.</p>
             </div>
             <div>
-                <span>© {{ date('Y') }} Todos os direitos reservados. Projeto educativo e científico.</span>
+                <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4">Visite-nos</h2>
+                <div class="space-y-3 text-xs leading-5 text-slate-400">
+                    <p class="flex gap-2"><i data-lucide="map-pin" class="w-4 h-4 text-cenpaleo-cyan shrink-0"></i><span>Bloco E da UnC — Av. Pres. Nereu Ramos, 1071, Jardim Moinho, Mafra/SC</span></p>
+                    <p class="flex gap-2"><i data-lucide="clock-3" class="w-4 h-4 text-cenpaleo-orange shrink-0"></i><span>Visitas mediante agendamento prévio.</span></p>
+                </div>
             </div>
-            <div class="flex items-center gap-4">
-                <button onclick="openLgpdModal()" class="hover:text-emerald-400 underline transition-colors">Termos de Privacidade (LGPD)</button>
+            <div>
+                <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4">Contato</h2>
+                <div class="space-y-3 text-xs text-slate-400">
+                    <a href="mailto:cenpaleo@unc.br" class="flex items-center gap-2 hover:text-cenpaleo-cyan transition-colors"><i data-lucide="mail" class="w-4 h-4"></i>cenpaleo@unc.br</a>
+                    <a href="tel:+554736415514" class="flex items-center gap-2 hover:text-cenpaleo-cyan transition-colors"><i data-lucide="phone" class="w-4 h-4"></i>(47) 3641-5514</a>
+                    <button type="button" onclick="openLgpdModal()" class="flex items-center gap-2 hover:text-cenpaleo-cyan transition-colors"><i data-lucide="shield-check" class="w-4 h-4"></i>Política de Privacidade</button>
+                </div>
             </div>
         </div>
+        <div class="border-t border-white/10 bg-[#242424]"><div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 text-center text-[11px] text-slate-500">© {{ date('Y') }} CENPALEO — Universidade do Contestado — FUnC</div></div>
     </footer>
 
-    <!-- LGPD Info Modal -->
-    <div id="lgpd-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="glass-panel max-w-lg w-full rounded-2xl p-6 shadow-2xl border border-slate-700">
-            <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-                <div class="flex items-center gap-2 text-emerald-400">
-                    <i data-lucide="shield-alert" class="w-5 h-5"></i>
-                    <h3 class="font-bold text-lg text-white">Política de Privacidade e LGPD</h3>
-                </div>
-                <button onclick="closeLgpdModal()" class="text-slate-400 hover:text-white transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
+    <div id="lgpd-modal" class="fixed inset-0 z-50 hidden modal-backdrop items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="lgpd-title">
+        <div class="museum-card max-w-lg w-full rounded-3xl p-6 sm:p-8">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-3"><span class="w-10 h-10 rounded-full bg-cyan-50 text-cenpaleo-cyan-dark flex items-center justify-center"><i data-lucide="shield-check" class="w-5 h-5"></i></span><h2 id="lgpd-title" class="font-bold text-lg text-cenpaleo-navy">Privacidade e LGPD</h2></div>
+                <button type="button" onclick="closeLgpdModal()" class="p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-cenpaleo-navy transition-colors" aria-label="Fechar"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            <div class="py-4 text-sm text-slate-300 space-y-3 max-h-96 overflow-y-auto">
-                <p>O <strong>Centro de Pesquisas Paleontológicas (Cenpaleo)</strong> respeita a sua privacidade. Os dados fornecidos no formulário de agendamento (Nome, Instituição, Telefone e E-mail) são coletados exclusivamente para fins de organização, validação e comunicação de visitas guiadas.</p>
-                <ul class="list-disc list-inside space-y-1 text-slate-400">
-                    <li>Seus dados <strong>nunca</strong> serão compartilhados com terceiros ou usados para fins comerciais.</li>
-                    <li>O cadastro é mantido de forma segura durante o período letivo/operacional do agendamento.</li>
-                    <li>Você pode solicitar a alteração ou remoção de seus dados enviando uma mensagem aos administradores.</li>
-                </ul>
+            <div class="py-5 text-sm text-slate-600 space-y-3 leading-6 max-h-96 overflow-y-auto">
+                <p>O <strong class="text-cenpaleo-navy">CENPALEO</strong> coleta os dados do formulário exclusivamente para organizar, validar e comunicar as visitas agendadas.</p>
+                <ul class="list-disc pl-5 space-y-2"><li>Os dados não são usados para fins comerciais.</li><li>O acesso é restrito à equipe responsável pelos agendamentos.</li><li>Você pode solicitar correção ou remoção pelos canais oficiais de contato.</li></ul>
             </div>
-            <div class="pt-4 border-t border-slate-800 text-right">
-                <button onclick="closeLgpdModal()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-sm transition-all">Entendi e Aceito</button>
-            </div>
+            <div class="pt-4 border-t border-slate-100 text-right"><button type="button" onclick="closeLgpdModal()" class="px-5 py-2.5 bg-cenpaleo-purple hover:bg-violet-700 text-white font-bold rounded-full text-xs transition-colors">Entendi</button></div>
         </div>
     </div>
 
     <script>
         lucide.createIcons();
         function openLgpdModal() {
-            document.getElementById('lgpd-modal').classList.remove('hidden');
+            const modal = document.getElementById('lgpd-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
         function closeLgpdModal() {
-            document.getElementById('lgpd-modal').classList.add('hidden');
+            const modal = document.getElementById('lgpd-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
     </script>
     @stack('scripts')

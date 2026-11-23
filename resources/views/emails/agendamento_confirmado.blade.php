@@ -36,10 +36,10 @@
             </tr>
             <tr>
                 <td class="label">Turno:</td>
-                <td>{{ ucfirst($agendamento->turno) }}</td>
+                <td>{{ $agendamento->turno === 'ambos' ? 'Manhã e Tarde' : ucfirst($agendamento->turno) }}</td>
             </tr>
             <tr>
-                <td class="label">Número de Alunos:</td>
+                <td class="label">Alunos/Visitantes:</td>
                 <td>{{ $agendamento->num_alunos }}</td>
             </tr>
             <tr>
