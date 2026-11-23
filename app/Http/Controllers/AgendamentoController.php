@@ -238,22 +238,31 @@ class AgendamentoController extends Controller
                     'status' => 'pendente',
                 ]);
 
-                // 4. Disparo de e-mail de confirmação (com log fallback)
-                try {
-                    Mail::to($agendamento->email)->send(new AgendamentoConfirmadoMail($agendamento));
-                } catch (\Exception $e) {
-                    Log::warning('Erro no disparo de e-mail de agendamento: '.$e->getMessage());
-                }
-
                 return [
                     'status_code' => 201,
+                    'agendamento' => $agendamento,
                     'response' => [
                         'success' => true,
-                        'message' => 'Agendamento solicitado com sucesso! Enviamos um e-mail de confirmação.',
+                        'message' => 'Agendamento solicitado com sucesso! O comprovante foi colocado na fila de envio por e-mail.',
                         'agendamento' => $agendamento,
                     ],
                 ];
             }, attempts: 3);
+
+            if (isset($resultado['agendamento'])) {
+                try {
+                    Mail::to($resultado['agendamento']->email)->queue(
+                        new AgendamentoConfirmadoMail($resultado['agendamento'])
+                    );
+                } catch (\Exception $e) {
+                    Log::warning('Não foi possível enfileirar o e-mail da solicitação de agendamento.', [
+                        'agendamento_id' => $resultado['agendamento']->id,
+                        'exception' => $e,
+                    ]);
+
+                    $resultado['response']['message'] = 'Agendamento solicitado com sucesso, mas o comprovante não pôde ser colocado na fila de e-mail.';
+                }
+            }
 
             return response()->json($resultado['response'], $resultado['status_code']);
 

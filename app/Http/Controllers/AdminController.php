@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\AgendamentoStatusMail;
 use App\Models\Agendamento;
 use App\Models\Bloqueio;
 use Carbon\Carbon;
@@ -10,6 +11,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class AdminController extends Controller
 {
@@ -124,15 +128,64 @@ class AdminController extends Controller
      */
     public function updateStatus(Request $request, int $id): RedirectResponse
     {
-        $request->validate([
-            'status' => 'required|in:pendente,confirmado,cancelado',
+        $validated = $request->validate([
+            'status' => 'required|in:confirmado,cancelado',
+            'motivo_cancelamento' => 'required_if:status,cancelado|nullable|string|min:5|max:1000',
+        ], [
+            'motivo_cancelamento.required_if' => 'Informe o motivo da negação ou do cancelamento para que ele seja enviado ao cliente.',
+            'motivo_cancelamento.min' => 'O motivo deve ter pelo menos 5 caracteres.',
+            'motivo_cancelamento.max' => 'O motivo não pode ultrapassar 1000 caracteres.',
         ]);
 
-        $agendamento = Agendamento::findOrFail($id);
-        $agendamento->status = $request->input('status');
-        $agendamento->save();
+        $resultado = DB::transaction(function () use ($id, $validated): array {
+            $agendamento = Agendamento::query()->lockForUpdate()->findOrFail($id);
+            $statusAnterior = $agendamento->status;
 
-        return back()->with('success', "Agendamento #{$id} alterado para '{$agendamento->status}'!");
+            if ($statusAnterior === $validated['status']) {
+                return [
+                    'agendamento' => $agendamento,
+                    'tipoEmail' => null,
+                    'mensagem' => 'O agendamento já estava com o status selecionado.',
+                ];
+            }
+
+            $tipoEmail = $validated['status'] === 'confirmado'
+                ? 'confirmacao'
+                : ($statusAnterior === 'pendente' ? 'negacao' : 'cancelamento');
+
+            $agendamento->status = $validated['status'];
+            $agendamento->motivo_cancelamento = $validated['status'] === 'cancelado'
+                ? trim($validated['motivo_cancelamento'])
+                : null;
+            $agendamento->save();
+
+            $mensagem = match ($tipoEmail) {
+                'confirmacao' => 'Agendamento confirmado e e-mail de confirmação colocado na fila de envio.',
+                'negacao' => 'Solicitação negada e e-mail com o motivo colocado na fila de envio.',
+                'cancelamento' => 'Agendamento cancelado e e-mail com o motivo colocado na fila de envio.',
+            };
+
+            return compact('agendamento', 'tipoEmail', 'mensagem');
+        }, attempts: 3);
+
+        if ($resultado['tipoEmail'] === null) {
+            return back()->with('success', $resultado['mensagem']);
+        }
+
+        try {
+            Mail::to($resultado['agendamento']->email)->queue(
+                new AgendamentoStatusMail($resultado['agendamento'], $resultado['tipoEmail'])
+            );
+        } catch (Throwable $exception) {
+            Log::error('Não foi possível enfileirar o e-mail de atualização do agendamento.', [
+                'agendamento_id' => $resultado['agendamento']->id,
+                'exception' => $exception,
+            ]);
+
+            return back()->with('warning', 'O status foi atualizado, mas o e-mail não pôde ser colocado na fila. Verifique a configuração de e-mail e tente novamente.');
+        }
+
+        return back()->with('success', $resultado['mensagem']);
     }
 
     /**

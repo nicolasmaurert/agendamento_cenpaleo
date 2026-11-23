@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Confirmação de Agendamento - Cenpaleo</title>
+    <title>Solicitação de visita recebida - CENPALEO</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
         .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
@@ -22,33 +22,33 @@
             <p>Solicitação de Agendamento Recebida</p>
         </div>
 
-        <p>Olá, <strong>{{ $agendamento->responsavel }}</strong>!</p>
+        <p>Olá, <strong>{{ $dados['responsavel'] }}</strong>!</p>
         <p>Recebemos a sua solicitação de agendamento de visita para a Exposição Cenpaleo com sucesso.</p>
 
         <table class="info-table">
             <tr>
                 <td class="label">Instituição:</td>
-                <td>{{ $agendamento->instituicao }}</td>
+                <td>{{ $dados['instituicao'] }}</td>
             </tr>
             <tr>
                 <td class="label">Data Solicitada:</td>
-                <td>{{ \Carbon\Carbon::parse($agendamento->data)->format('d/m/Y') }}</td>
+                <td>{{ \Carbon\Carbon::parse($dados['data'])->format('d/m/Y') }}</td>
             </tr>
             <tr>
                 <td class="label">Turno:</td>
-                <td>{{ $agendamento->turno === 'ambos' ? 'Manhã e Tarde' : ucfirst($agendamento->turno) }}</td>
+                <td>{{ $dados['turno'] === 'ambos' ? 'Manhã e Tarde' : ucfirst($dados['turno']) }}</td>
             </tr>
             <tr>
                 <td class="label">Alunos/Visitantes:</td>
-                <td>{{ $agendamento->num_alunos }}</td>
+                <td>{{ $dados['num_alunos'] }}</td>
             </tr>
             <tr>
                 <td class="label">Telefone de Contato:</td>
-                <td>{{ $agendamento->telefone }}</td>
+                <td>{{ $dados['telefone'] }}</td>
             </tr>
             <tr>
                 <td class="label">Status Atual:</td>
-                <td><span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-weight: 600;">{{ ucfirst($agendamento->status) }}</span></td>
+                <td><span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-weight: 600;">Pendente de análise</span></td>
             </tr>
         </table>
 

@@ -22,6 +22,9 @@
     @if(session('success'))
         <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold flex items-center gap-3"><i data-lucide="check-circle-2" class="w-5 h-5 shrink-0"></i><span>{{ session('success') }}</span></div>
     @endif
+    @if(session('warning'))
+        <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-sm font-semibold flex items-center gap-3"><i data-lucide="mail-warning" class="w-5 h-5 shrink-0"></i><span>{{ session('warning') }}</span></div>
+    @endif
     @if($errors->any())
         <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold flex items-start gap-3"><i data-lucide="triangle-alert" class="w-5 h-5 shrink-0 mt-0.5"></i><div>{{ $errors->first() }}</div></div>
     @endif
@@ -155,8 +158,16 @@
                             <td class="py-4 px-5"><p class="flex items-center gap-1.5"><i data-lucide="phone" class="w-3 h-3"></i>{{ $agendamento->telefone }}</p><p class="mt-1 flex items-center gap-1.5 text-[10px] text-slate-400"><i data-lucide="mail" class="w-3 h-3"></i>{{ $agendamento->email }}</p></td>
                             <td class="py-4 px-5"><span class="px-2.5 py-1 rounded-full text-[9px] font-bold {{ $agendamento->status === 'confirmado' ? 'bg-emerald-100 text-emerald-700' : ($agendamento->status === 'pendente' ? 'bg-orange-100 text-orange-700' : 'bg-rose-100 text-rose-700') }}">{{ ucfirst($agendamento->status) }}</span></td>
                             <td class="py-4 px-5"><div class="flex items-center justify-end gap-2">
-                                @if($agendamento->status !== 'confirmado')<form action="{{ route('admin.agendamentos.update', $agendamento->id) }}" method="POST">@csrf @method('PUT')<input type="hidden" name="status" value="confirmado"><button type="submit" title="Confirmar" class="p-2 rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100"><i data-lucide="check" class="w-4 h-4"></i></button></form>@endif
-                                @if($agendamento->status !== 'cancelado')<form action="{{ route('admin.agendamentos.update', $agendamento->id) }}" method="POST">@csrf @method('PUT')<input type="hidden" name="status" value="cancelado"><button type="button" title="Cancelar" onclick="openConfirmationModal(this)" data-confirm-title="Cancelar agendamento" data-confirm-message="Cancelar a visita de {{ $agendamento->responsavel }} em {{ $agendamento->data->format('d/m/Y') }}? O turno ficará disponível novamente." data-confirm-label="Sim, cancelar" class="p-2 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100"><i data-lucide="ban" class="w-4 h-4"></i></button></form>@endif
+                                @if($agendamento->status !== 'confirmado')<form action="{{ route('admin.agendamentos.update', $agendamento->id) }}" method="POST">@csrf @method('PUT')<input type="hidden" name="status" value="confirmado"><button type="submit" title="Confirmar e enviar e-mail" class="p-2 rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100"><i data-lucide="check" class="w-4 h-4"></i></button></form>@endif
+                                @if($agendamento->status !== 'cancelado')
+                                    <form action="{{ route('admin.agendamentos.update', $agendamento->id) }}" method="POST">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="hidden" name="status" value="cancelado">
+                                        <input type="hidden" name="motivo_cancelamento" class="js-confirmation-reason-input">
+                                        <button type="button" title="{{ $agendamento->status === 'pendente' ? 'Negar solicitação' : 'Cancelar agendamento' }}" onclick="openConfirmationModal(this)" data-confirm-title="{{ $agendamento->status === 'pendente' ? 'Negar solicitação' : 'Cancelar agendamento' }}" data-confirm-message="{{ $agendamento->status === 'pendente' ? 'Informe por que a visita de '.$agendamento->responsavel.' não poderá ser aprovada.' : 'Informe por que a visita de '.$agendamento->responsavel.' precisará ser cancelada.' }} O motivo será enviado por e-mail ao cliente." data-confirm-label="{{ $agendamento->status === 'pendente' ? 'Negar e enviar e-mail' : 'Cancelar e enviar e-mail' }}" data-requires-reason="true" data-reason-label="{{ $agendamento->status === 'pendente' ? 'Motivo da negação' : 'Motivo do cancelamento' }}" data-reason-placeholder="Explique o motivo de forma clara para o cliente" class="p-2 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100"><i data-lucide="ban" class="w-4 h-4"></i></button>
+                                    </form>
+                                @endif
                             </div></td>
                         </tr>
                     @empty
@@ -190,6 +201,14 @@
             <div class="min-w-0">
                 <h2 id="confirmation-title" class="text-lg font-extrabold text-cenpaleo-navy">Confirmar ação</h2>
                 <p id="confirmation-message" class="mt-2 text-sm leading-6 text-slate-600"></p>
+            </div>
+        </div>
+        <div id="confirmation-reason-container" class="hidden mt-5">
+            <label id="confirmation-reason-label" for="confirmation-reason" class="block text-[10px] font-bold text-cenpaleo-navy uppercase tracking-wider mb-1.5">Motivo</label>
+            <textarea id="confirmation-reason" rows="4" maxlength="1000" class="museum-field px-4 py-3 text-sm resize-y" placeholder="Explique o motivo de forma clara para o cliente"></textarea>
+            <div class="mt-1 flex items-start justify-between gap-3 text-[10px]">
+                <p id="confirmation-reason-error" class="hidden text-rose-600 font-semibold">Informe um motivo com pelo menos 5 caracteres.</p>
+                <p class="ml-auto text-slate-400"><span id="confirmation-reason-count">0</span>/1000</p>
             </div>
         </div>
         <div class="mt-6 pt-5 border-t border-slate-100 flex flex-col-reverse sm:flex-row justify-end gap-3">
@@ -226,10 +245,21 @@
         document.getElementById('confirmation-submit').disabled = false;
         document.getElementById('confirmation-spinner').classList.add('hidden');
 
+        const reasonContainer = document.getElementById('confirmation-reason-container');
+        const reasonInput = document.getElementById('confirmation-reason');
+        const requiresReason = button.dataset.requiresReason === 'true';
+        reasonContainer.classList.toggle('hidden', !requiresReason);
+        reasonInput.required = requiresReason;
+        reasonInput.value = '';
+        reasonInput.placeholder = button.dataset.reasonPlaceholder || 'Explique o motivo de forma clara para o cliente';
+        document.getElementById('confirmation-reason-label').innerText = button.dataset.reasonLabel || 'Motivo';
+        document.getElementById('confirmation-reason-error').classList.add('hidden');
+        document.getElementById('confirmation-reason-count').innerText = '0';
+
         const modal = document.getElementById('confirmation-modal');
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        document.getElementById('confirmation-submit').focus();
+        (requiresReason ? reasonInput : document.getElementById('confirmation-submit')).focus();
     }
 
     function closeConfirmationModal() {
@@ -242,6 +272,16 @@
     function submitConfirmedAction() {
         if (!confirmationForm) return;
 
+        const reasonInput = document.getElementById('confirmation-reason');
+        if (reasonInput.required && reasonInput.value.trim().length < 5) {
+            document.getElementById('confirmation-reason-error').classList.remove('hidden');
+            reasonInput.focus();
+            return;
+        }
+
+        const formReasonInput = confirmationForm.querySelector('.js-confirmation-reason-input');
+        if (formReasonInput) formReasonInput.value = reasonInput.value.trim();
+
         const submitButton = document.getElementById('confirmation-submit');
         submitButton.disabled = true;
         document.getElementById('confirmation-spinner').classList.remove('hidden');
@@ -249,6 +289,10 @@
     }
 
     document.getElementById('confirmation-modal').addEventListener('click', closeConfirmationModal);
+    document.getElementById('confirmation-reason').addEventListener('input', (event) => {
+        document.getElementById('confirmation-reason-count').innerText = event.target.value.length;
+        if (event.target.value.trim().length >= 5) document.getElementById('confirmation-reason-error').classList.add('hidden');
+    });
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && !document.getElementById('confirmation-modal').classList.contains('hidden')) {
             closeConfirmationModal();

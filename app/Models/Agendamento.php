@@ -20,6 +20,7 @@ class Agendamento extends Model
         'telefone',
         'email',
         'status',
+        'motivo_cancelamento',
     ];
 
     protected $casts = [

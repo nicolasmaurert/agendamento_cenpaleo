@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Mail\AgendamentoConfirmadoMail;
+use App\Mail\AgendamentoStatusMail;
 use App\Models\Agendamento;
 use App\Models\Bloqueio;
 use Carbon\Carbon;
@@ -21,6 +23,11 @@ class AgendamentoDisponibilidadeTest extends TestCase
         $response = $this->postJson('/api/agendar', $this->dadosAgendamento($data, 'manha'));
 
         $response->assertCreated()->assertJsonPath('success', true);
+
+        Mail::assertQueued(AgendamentoConfirmadoMail::class, function (AgendamentoConfirmadoMail $mail): bool {
+            return $mail->hasTo('maria@example.com')
+                && $mail->dados['responsavel'] === 'Maria da Silva';
+        });
 
         $disponibilidade = $this->getJson('/api/disponibilidade?mes='.$data->format('Y-m'));
 
@@ -152,6 +159,87 @@ class AgendamentoDisponibilidadeTest extends TestCase
         ]);
     }
 
+    public function test_confirmacao_do_administrador_envia_email_ao_cliente(): void
+    {
+        Mail::fake();
+        $agendamento = $this->criarAgendamento('pendente');
+
+        $this->withSession(['admin_logged_in' => true])
+            ->put(route('admin.agendamentos.update', $agendamento), [
+                'status' => 'confirmado',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('agendamentos', [
+            'id' => $agendamento->id,
+            'status' => 'confirmado',
+            'motivo_cancelamento' => null,
+        ]);
+
+        Mail::assertQueued(AgendamentoStatusMail::class, function (AgendamentoStatusMail $mail): bool {
+            return $mail->hasTo('cliente@example.com')
+                && $mail->tipo === 'confirmacao';
+        });
+    }
+
+    public function test_negacao_exige_motivo_e_envia_o_motivo_ao_cliente(): void
+    {
+        Mail::fake();
+        $agendamento = $this->criarAgendamento('pendente');
+
+        $this->withSession(['admin_logged_in' => true])
+            ->put(route('admin.agendamentos.update', $agendamento), [
+                'status' => 'cancelado',
+            ])
+            ->assertSessionHasErrors('motivo_cancelamento');
+
+        $this->assertDatabaseHas('agendamentos', [
+            'id' => $agendamento->id,
+            'status' => 'pendente',
+        ]);
+        Mail::assertNothingQueued();
+
+        $motivo = 'A exposição estará fechada para manutenção preventiva.';
+
+        $this->withSession(['admin_logged_in' => true])
+            ->put(route('admin.agendamentos.update', $agendamento), [
+                'status' => 'cancelado',
+                'motivo_cancelamento' => $motivo,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('agendamentos', [
+            'id' => $agendamento->id,
+            'status' => 'cancelado',
+            'motivo_cancelamento' => $motivo,
+        ]);
+
+        Mail::assertQueued(AgendamentoStatusMail::class, function (AgendamentoStatusMail $mail) use ($motivo): bool {
+            return $mail->tipo === 'negacao'
+                && $mail->dados['motivo_cancelamento'] === $motivo;
+        });
+    }
+
+    public function test_cancelamento_de_visita_confirmada_envia_motivo_ao_cliente(): void
+    {
+        Mail::fake();
+        $agendamento = $this->criarAgendamento('confirmado');
+        $motivo = 'O museu estará reservado para uma atividade institucional.';
+
+        $this->withSession(['admin_logged_in' => true])
+            ->put(route('admin.agendamentos.update', $agendamento), [
+                'status' => 'cancelado',
+                'motivo_cancelamento' => $motivo,
+            ])
+            ->assertSessionHasNoErrors();
+
+        Mail::assertQueued(AgendamentoStatusMail::class, function (AgendamentoStatusMail $mail) use ($motivo): bool {
+            return $mail->hasTo('cliente@example.com')
+                && $mail->tipo === 'cancelamento'
+                && $mail->dados['motivo_cancelamento'] === $motivo;
+        });
+    }
+
     public function test_painel_administrativo_exibe_calendario_com_visitante_e_horario(): void
     {
         $data = $this->proximoDiaUtil();
@@ -181,7 +269,9 @@ class AgendamentoDisponibilidadeTest extends TestCase
             ->assertSee('Escola do Contestado')
             ->assertSee('08:30–11:30')
             ->assertSee('id="confirmation-modal"', false)
+            ->assertSee('id="confirmation-reason"', false)
             ->assertSee('data-confirm-title="Cancelar agendamento"', false)
+            ->assertSee('data-requires-reason="true"', false)
             ->assertSee('data-confirm-title="Remover bloqueio"', false)
             ->assertSee('2xl:grid-cols-[minmax(0,1.8fr)_minmax(420px,0.8fr)]', false)
             ->assertDontSee('return confirm(', false);
@@ -205,6 +295,20 @@ class AgendamentoDisponibilidadeTest extends TestCase
         }
 
         return $data;
+    }
+
+    private function criarAgendamento(string $status): Agendamento
+    {
+        return Agendamento::create([
+            'data' => $this->proximoDiaUtil()->format('Y-m-d'),
+            'turno' => 'manha',
+            'responsavel' => 'Cliente de teste',
+            'instituicao' => 'Instituição de teste',
+            'num_alunos' => 20,
+            'telefone' => '(47) 99999-0000',
+            'email' => 'cliente@example.com',
+            'status' => $status,
+        ]);
     }
 
     /**
